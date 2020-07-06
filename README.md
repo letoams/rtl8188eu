@@ -1,55 +1,65 @@
-IMPORTANT - PLEASE READ:
 
-Beginning on November 4, 2019, I will NO LONGER support people that have downloaded the source
-as a zip file. Using git has much more flexibility. In addition, there is much less liklihood
-that a user will contact me with a problem that is ALREADY fixed.
 
-If your system says that /lib/modules/...../build does not exist, you have not
-installed the kernel headers, you have done it incorrectly, or you are not running
-the kernel for which the headers have been installed. The necessary steps are
-dependent on which distro you are using. Creating a new issue and asking at
-GitHub will not be productive.
+# RTL8188eu on RHEL / CentOS 8
 
-Unsolicited E-mail sent to my private address will be ignored!!
 
-If a build fails that previously worked, perform a 'git pull' and retry before
-reporting a problem. As noted, if you had downloaded the source in zip form, then you would
-need to get an entirely new source file. That is why using git, which downloads only the changed
-lines, is required.
+This is a clone of the https://github.com/lwfinger/rtl8188eu
 
-rtl8188eu
-=========
+Specifically, it is a clone of the v4.1.8\_9499 branch
 
-Repository for the stand-alone RTL8188EU driver.
+It only contains a simple hack of KERNEL\_VERSION to make it work on
+RHEL/CentOS 8 kernels.
 
-Compiling & Building
----------
-### Dependencies
-To compile the driver, you need to have make and a compiler installed. In addition,
-you must have the kernel headers installed. If you do not understand what this means,
-consult your distro.
-### Compiling
+The upstream maintainer refuses to support kernels with backports, even
+common ones like RHEL, CentOS and Ubuntu kernels.
 
-> make all
+It took me a couple hours to make it all work, so this is to help people
+save time. In the future, I might add it as a kmod rpm to the libreswan
+repository at https://download.libreswan.org/binaries/rhel/8/
 
-### Installing
+To make this work on RHEL/CentOS 8:
 
-> sudo make install
+```
+make
+sudo make install
+sudo modprobe r8188eu
+```
 
-DKMS
----------
-The module can also be installed with DKMS. Make sure to install the `dkms` package first.
+Running dmesg, will show you something like:
 
-    sudo dkms add ./rtl8188eu
-    sudo dkms build 8188eu/1.0
-    sudo dkms install 8188eu/1.0
+```
+SupportPlatform 0x4
+usbcore: registered new interface driver rtl8188eu
+rtl8188eu 1-1.1:1.0 wlp0s26u1u1: renamed from wlan0
+R8188EU: Loaded firmware file rtlwifi/rtl8188eufw.bin
+R8188EU: Firmware Version 11, SubVersion 1, Signature 0x88e1
+```
 
-Submitting Issues
----------
+Configure the device with Network Manager:
 
-Frequently asked Questions
----------
+```
+sudo dnf install NetworkManager-wifi
+sudo nmcli d
+    [...]
+    wlp0s26u1u1          wifi      disconnected  --          
+    p2p-dev-wlp0s26u1u1  wifi-p2p  disconnected  --          
 
-### The network manager says: "Device is not ready"!
-Make sure you copied the firmware (rtl8188eufw.bin) to /lib/firmware/rtlwifi/
+sudo nmcli d wifi list
+    IN-USE  BSSID              SSID                              MODE   CHAN  RATE        SIGNAL  BARS  SECURITY  
+        XX:XX:XX:XX:XX:XX  NoHatsEconomy                     Infra  7     11 Mbit/s   92      ▂▄▆█  WPA2      
+        [...]        
 
+sudo nmcli d wifi connect NoHatsEconomy password yourpassword
+    Device 'wlp0s26u1u1' successfully activated with 'ce16b71c-c572-454d-aef7-1264b53c8b7a'.
+
+ifconfig
+    [...]
+wlp0s26u1u1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1440
+        inet 76.XX.XXX.XX  netmask 255.255.255.240  broadcast 76.XX.XXX.XX
+        inet6 fe80::b852:c8b:5c31:2689  prefixlen 64  scopeid 0x20<link>
+        ether xx:xx:xx:xx:xx:xx  txqueuelen 1000  (Ethernet)
+        RX packets 17  bytes 2258 (2.2 KiB)
+        RX errors 0  dropped 1  overruns 0  frame 0
+        TX packets 34  bytes 5859 (5.7 KiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+```
